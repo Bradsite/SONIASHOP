@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soniashop — Chaussures, sacs & accessoires</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+  :root{
+    --bg:#170F1F; --bg-alt:#241733; --gold:#E8A94A; --coral:#E8607A; --cream:#F6EEDD; --green:#3E7C59;
+    --line:rgba(246,238,221,0.14);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{background:var(--bg); color:var(--cream); font-family:'Work Sans',sans-serif; line-height:1.5;}
+  h1,h2,h3{font-family:'Fraunces',serif; font-weight:500;}
+  a{color:inherit; text-decoration:none;}
+  .label{font-family:'Space Mono',monospace; font-size:0.72rem; letter-spacing:0.14em; text-transform:uppercase; color:var(--gold);}
+  .wax-divider{height:22px; width:100%;
+    background-image:repeating-linear-gradient(135deg, var(--gold) 0 6px, transparent 6px 26px),
+                      repeating-linear-gradient(45deg, var(--coral) 0 4px, transparent 4px 26px);
+    background-size:26px 26px; opacity:0.9;}
+  header{position:sticky; top:0; z-index:50; background:rgba(23,15,31,0.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);}
+  .nav{max-width:1180px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:18px 24px;}
+  .logo{font-family:'Fraunces',serif; font-style:italic; font-size:1.5rem;}
+  .logo span{color:var(--gold); font-style:normal;}
+  .nav-cta{background:var(--green); color:var(--cream); padding:9px 18px; border-radius:999px; font-size:0.85rem; font-weight:500;}
+  section{max-width:1180px; margin:0 auto; padding:56px 24px;}
+  .section-head{margin-bottom:34px; max-width:520px;}
+  .section-head h2{font-size:clamp(1.5rem,3vw,2.1rem); margin-top:8px;}
+  .filters{display:flex; gap:10px; margin-bottom:28px; flex-wrap:wrap;}
+  .filter-btn{border:1px solid var(--line); padding:8px 16px; border-radius:999px; font-size:0.85rem; background:transparent; color:var(--cream); cursor:pointer;}
+  .filter-btn.active{background:var(--gold); color:var(--bg); border-color:var(--gold);}
+  .prod-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:20px;}
+  .prod-card{border:1px solid var(--line); border-radius:18px; overflow:hidden; background:var(--bg-alt); display:flex; flex-direction:column;}
+  .prod-thumb{aspect-ratio:1/1; background:linear-gradient(160deg,#2E1B3E,#1A1220); position:relative; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .prod-thumb img{width:100%; height:100%; object-fit:cover;}
+  .prod-thumb svg{width:38%; height:38%; opacity:0.85;}
+  .status-tag{position:absolute; top:10px; left:10px; font-family:'Space Mono',monospace; font-size:0.62rem; padding:3px 8px; border-radius:999px; letter-spacing:0.05em;}
+  .status-tag.available{background:var(--coral); color:var(--bg);}
+  .status-tag.reserved{background:#B58A2B; color:var(--bg);}
+  .status-tag.sold{background:#555; color:var(--cream);}
+  .prod-info{padding:16px; display:flex; flex-direction:column; gap:8px; flex:1;}
+  .prod-info h4{font-family:'Fraunces',serif; font-weight:500; font-size:1rem;}
+  .prod-price{font-family:'Space Mono',monospace; color:var(--gold); font-size:0.9rem;}
+  .countdown{font-size:0.72rem; color:rgba(246,238,221,0.6); font-family:'Space Mono',monospace;}
+  .btn-row-card{display:flex; gap:8px; margin-top:auto;}
+  .prod-btn{flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:9px; border-radius:10px; font-size:0.78rem; font-weight:500; cursor:pointer; border:none;}
+  .prod-btn.reserve{background:var(--gold); color:var(--bg);}
+  .prod-btn.order{background:var(--green); color:var(--cream);}
+  .prod-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .empty-msg{color:rgba(246,238,221,0.5); font-size:0.9rem;}
+
+  .my-reservations{margin-top:40px; padding:20px; border:1px dashed var(--line); border-radius:16px;}
+  .my-res-item{display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); font-size:0.88rem;}
+  .my-res-item:last-child{border-bottom:none;}
+  .cancel-btn{background:var(--coral); color:var(--bg); border:none; padding:7px 14px; border-radius:999px; font-size:0.78rem; cursor:pointer;}
+
+  .modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:var(--bg-alt); border:1px solid var(--line); border-radius:20px; padding:28px; max-width:380px; width:100%;}
+  .modal h3{margin-bottom:6px;}
+  .modal p{font-size:0.85rem; color:rgba(246,238,221,0.7); margin-bottom:18px;}
+  .modal input{width:100%; padding:11px 14px; margin-bottom:12px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--cream); font-family:inherit;}
+  .modal-actions{display:flex; gap:10px; margin-top:6px;}
+  .modal-actions button{flex:1; padding:11px; border-radius:10px; border:none; font-weight:500; cursor:pointer;}
+  .modal-confirm{background:var(--gold); color:var(--bg);}
+  .modal-cancel{background:transparent; color:var(--cream); border:1px solid var(--line) !important;}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:var(--cream); padding:12px 22px; border-radius:999px; font-size:0.88rem; z-index:200; display:none;}
+  .toast.show{display:block;}
+
+  footer{border-top:1px solid var(--line); padding:40px 24px; text-align:center; font-size:0.8rem; color:rgba(246,238,221,0.5);}
+  footer a{color:var(--gold);}
+
+  @media (max-width:880px){
+    .prod-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">Sonia<span>shop</span></div>
+    <a class="nav-cta" href="https://wa.me/2290155406411" target="_blank" rel="noopener">Commander ↗</a>
+  </div>
+</header>
+<div class="wax-divider"></div>
+
+<section id="produits">
+  <div class="section-head">
+    <div class="label">Boutique</div>
+    <h2>Chaussures, sacs & accessoires</h2>
+  </div>
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-cat="Tous">Tous</button>
+    <button class="filter-btn" data-cat="Chaussures">Chaussures</button>
+    <button class="filter-btn" data-cat="Sacs">Sacs</button>
+    <button class="filter-btn" data-cat="Accessoires">Accessoires</button>
+  </div>
+  <div class="prod-grid" id="prod-grid">
+    <p class="empty-msg">Chargement des produits…</p>
+  </div>
+
+  <div class="my-reservations" id="my-reservations" style="display:none;">
+    <div class="label" style="margin-bottom:12px;">Mes réservations</div>
+    <div id="my-reservations-list"></div>
+  </div>
+</section>
+
+<footer>
+  Soniashop — Bénin — <a href="https://wa.me/2290155406411" target="_blank" rel="noopener">WhatsApp 01 55 40 64 11</a>
+</footer>
+
+<div class="modal-overlay" id="reserve-modal">
+  <div class="modal">
+    <h3 id="reserve-title">Réserver ce produit</h3>
+    <p>Réservation valable 7 jours. Passé ce délai, le produit redevient disponible pour tout le monde.</p>
+    <input type="text" id="res-name" placeholder="Votre nom">
+    <input type="tel" id="res-phone" placeholder="Votre numéro de téléphone">
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeModal()">Annuler</button>
+      <button class="modal-confirm" onclick="confirmReservation()">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="firebase-config.js"></script>
+<script>
+const icons = {
+  Chaussures: `<svg viewBox="0 0 24 24" fill="none" stroke="#E8A94A" stroke-width="1.6"><path d="M3 17c0-2 1-3 3-4l6-3c1-.5 2-.5 3 .3l1 .8c1 .8 2 .8 3.2.2L21 10v4c0 2-1 3-3 3.5l-11 2.5c-2.2.5-4-1-4-3z"/></svg>`,
+  Sacs: `<svg viewBox="0 0 24 24" fill="none" stroke="#E8607A" stroke-width="1.6"><path d="M6 9h12l1 12H5L6 9z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg>`,
+  Accessoires: `<svg viewBox="0 0 24 24" fill="none" stroke="#3E7C59" stroke-width="1.6"><circle cx="12" cy="8" r="3.2"/><path d="M12 11.2V16M8.5 20h7"/></svg>`
+};
+
+let allProducts = [];
+let currentFilter = "Tous";
+let pendingReserveId = null;
+
+function deviceId(){
+  let id = localStorage.getItem('soniashop_device');
+  if(!id){ id = 'dev_' + Math.random().toString(36).slice(2); localStorage.setItem('soniashop_device', id); }
+  return id;
+}
+
+function getMyReservations(){
+  return JSON.parse(localStorage.getItem('soniashop_my_reservations') || '[]');
+}
+function saveMyReservation(productId, productName, until){
+  const list = getMyReservations();
+  list.push({productId, productName, until});
+  localStorage.setItem('soniashop_my_reservations', JSON.stringify(list));
+}
+function removeMyReservation(productId){
+  const list = getMyReservations().filter(r => r.productId !== productId);
+  localStorage.setItem('soniashop_my_reservations', JSON.stringify(list));
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+function timeLeft(untilMs){
+  const diff = untilMs - Date.now();
+  if(diff <= 0) return null;
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  if(days > 0) return `${days}j ${hours}h restantes`;
+  const mins = Math.floor((diff % 3600000) / 60000);
+  return `${hours}h ${mins}min restantes`;
+}
+
+async function loadProducts(){
+  const snap = await db.collection('products').orderBy('createdAt','desc').get();
+  const now = Date.now();
+  allProducts = [];
+  for(const doc of snap.docs){
+    const p = { id: doc.id, ...doc.data() };
+    // auto-expiration des réservations dépassées
+    if(p.status === 'reserved' && p.reservedUntil && p.reservedUntil < now){
+      await db.collection('products').doc(p.id).update({
+        status: 'available', reservedUntil: null, reservedName: null, reservedPhone: null, reservationToken: null
+      });
+      p.status = 'available';
+    }
+    allProducts.push(p);
+  }
+  renderProducts();
+  renderMyReservations();
+}
+
+function renderProducts(){
+  const grid = document.getElementById('prod-grid');
+  const list = currentFilter === 'Tous' ? allProducts : allProducts.filter(p => p.category === currentFilter);
+  if(list.length === 0){
+    grid.innerHTML = `<p class="empty-msg">Aucun produit pour l'instant dans cette catégorie.</p>`;
+    return;
+  }
+  grid.innerHTML = list.map(p => {
+    const statusLabel = p.status === 'available' ? 'Disponible' : p.status === 'reserved' ? 'Réservé' : 'Vendu';
+    const canReserve = p.status === 'available';
+    const canOrder = p.status !== 'sold';
+    const msg = encodeURIComponent(`Bonjour Soniashop, je suis intéressé(e) par : ${p.name} (${p.price}).`);
+    const countdown = p.status === 'reserved' && p.reservedUntil ? `<div class="countdown">${timeLeft(p.reservedUntil) || ''}</div>` : '';
+    const thumb = p.photoUrl
+      ? `<img src="${p.photoUrl}" alt="${p.name}">`
+      : (icons[p.category] || '');
+    return `
+    <div class="prod-card">
+      <div class="prod-thumb">
+        <span class="status-tag ${p.status}">${statusLabel}</span>
+        ${thumb}
+      </div>
+      <div class="prod-info">
+        <h4>${p.name}</h4>
+        <div class="prod-price">${p.price}</div>
+        ${countdown}
+        <div class="btn-row-card">
+          <button class="prod-btn reserve" ${canReserve ? '' : 'disabled'} onclick="openReserveModal('${p.id}','${p.name.replace(/'/g,"\\'")}')">Réserver</button>
+          <a class="prod-btn order" style="${canOrder ? '' : 'pointer-events:none; opacity:0.4;'}" href="https://wa.me/${WA_NUMBER}?text=${msg}" target="_blank" rel="noopener" onclick="logOrder('${p.id}','${p.name.replace(/'/g,"\\'")}','${p.price}')">Commander</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderMyReservations(){
+  const mine = getMyReservations();
+  const box = document.getElementById('my-reservations');
+  const listEl = document.getElementById('my-reservations-list');
+  const valid = mine.filter(r => r.until > Date.now() && allProducts.find(p => p.id === r.productId && p.status === 'reserved'));
+  if(valid.length === 0){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  listEl.innerHTML = valid.map(r => `
+    <div class="my-res-item">
+      <span>${r.productName} — ${timeLeft(r.until) || 'expirée'}</span>
+      <button class="cancel-btn" onclick="cancelReservation('${r.productId}')">Annuler</button>
+    </div>`).join('');
+}
+
+function openReserveModal(id, name){
+  pendingReserveId = id;
+  document.getElementById('reserve-title').textContent = `Réserver : ${name}`;
+  document.getElementById('res-name').value = '';
+  document.getElementById('res-phone').value = '';
+  document.getElementById('reserve-modal').classList.add('show');
+}
+function closeModal(){
+  document.getElementById('reserve-modal').classList.remove('show');
+  pendingReserveId = null;
+}
+
+function logOrder(productId, productName, price){
+  db.collection('orders').add({
+    type: 'commande', productName, price, clientName: null, clientPhone: null, createdAt: Date.now()
+  });
+}
+
+async function confirmReservation(){
+  const name = document.getElementById('res-name').value.trim();
+  const phone = document.getElementById('res-phone').value.trim();
+  if(!name || !phone){ showToast("Merci de remplir ton nom et ton numéro."); return; }
+  const until = Date.now() + RESERVATION_DAYS * 86400000;
+  const product = allProducts.find(p => p.id === pendingReserveId);
+  await db.collection('products').doc(pendingReserveId).update({
+    status: 'reserved', reservedUntil: until, reservedName: name, reservedPhone: phone
+  });
+  await db.collection('orders').add({
+    type: 'reservation', productName: product.name, price: product.price,
+    clientName: name, clientPhone: phone, createdAt: Date.now()
+  });
+  saveMyReservation(pendingReserveId, product.name, until);
+  closeModal();
+  showToast("Produit réservé pour 7 jours !");
+  loadProducts();
+}
+
+async function cancelReservation(productId){
+  await db.collection('products').doc(productId).update({
+    status: 'available', reservedUntil: null, reservedName: null, reservedPhone: null
+  });
+  removeMyReservation(productId);
+  showToast("Réservation annulée.");
+  loadProducts();
+}
+
+document.getElementById('filters').addEventListener('click', (e) => {
+  if(e.target.classList.contains('filter-btn')){
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    currentFilter = e.target.dataset.cat;
+    renderProducts();
+  }
+});
+
+loadProducts();
+setInterval(loadProducts, 60000); // rafraîchit chaque minute (gère les expirations)
+</script>
+</body>
+</html>
